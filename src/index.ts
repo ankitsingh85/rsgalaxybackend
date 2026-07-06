@@ -25,6 +25,11 @@ dotenv.config();
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
+const allowedOrigins = (process.env.CLIENT_URL ||
+  'http://localhost:3000,https://rsgalaxy-frontend-5825.vercel.app')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
 
 // Connect to MongoDB
 connectDB();
@@ -32,7 +37,14 @@ connectDB();
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true,
 }));
 
