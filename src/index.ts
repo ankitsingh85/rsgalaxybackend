@@ -32,11 +32,19 @@ dotenv.config();
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
+
+// Render sits the app behind a single reverse proxy, which sets X-Forwarded-For.
+// Without this, express-rate-limit throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR and
+// can't tell clients apart by IP.
+app.set('trust proxy', 1);
+
 const allowedOrigins = (process.env.CLIENT_URL ||
   'http://localhost:3000,https://rsgalaxy-frontend.vercel.app,https://rsgalaxy-frontend-5825.vercel.app')
   .split(',')
-  .map(origin => origin.trim())
+  .map(origin => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
+
+console.log('CORS allowed origins:', allowedOrigins);
 
 // Connect to MongoDB
 connectDB();
@@ -45,11 +53,13 @@ connectDB();
 app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    const normalized = origin?.replace(/\/$/, '');
+    if (!normalized || allowedOrigins.includes(normalized)) {
       callback(null, true);
       return;
     }
 
+    console.warn(`CORS blocked for origin: ${origin}. Allowed: ${allowedOrigins.join(', ')}`);
     callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
