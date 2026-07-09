@@ -9,8 +9,9 @@ import Hotel from '../models/Hotel.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { logAudit } from '../utils/audit';
 import { sendAccountBannedEmail, sendPasswordChangedEmail } from '../utils/email';
+import { uploadSubdir } from '../config/uploadPaths';
 
-const UPLOAD_DIR = path.join(__dirname, '../../uploads/guests');
+const UPLOAD_DIR = uploadSubdir('guests');
 
 // A manager (now that Customers routes are open to them, gated by permission) may only ever
 // act on customer accounts (role 'user') — never on admin/manager accounts, regardless of

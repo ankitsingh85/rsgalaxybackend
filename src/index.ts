@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import connectDB from './config/db';
+import { UPLOADS_ROOT } from './config/uploadPaths';
 import { apiLimiter } from './middleware/rateLimit.middleware';
 
 // Route imports
@@ -81,7 +82,7 @@ app.use(morgan('dev'));
 app.use('/uploads', (_req: Request, res: Response, next) => {
   res.set('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
-}, express.static(path.join(__dirname, '../uploads')));
+}, express.static(UPLOADS_ROOT));
 
 // Health check
 app.get('/', (_req: Request, res: Response) => {

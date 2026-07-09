@@ -8,8 +8,9 @@ import Hotel from '../models/Hotel.model';
 import Booking from '../models/Booking.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { logAudit } from '../utils/audit';
+import { uploadSubdir } from '../config/uploadPaths';
 
-const UPLOAD_DIR = path.join(__dirname, '../../uploads/rooms');
+const UPLOAD_DIR = uploadSubdir('rooms');
 
 // GET /api/rooms
 export const getRooms = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {

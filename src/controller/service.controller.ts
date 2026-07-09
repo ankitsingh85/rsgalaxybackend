@@ -7,8 +7,9 @@ import Service from '../models/Service.model';
 import Hotel from '../models/Hotel.model';
 import User from '../models/User.model';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { uploadSubdir } from '../config/uploadPaths';
 
-const UPLOAD_DIR = path.join(__dirname, '../../uploads/services');
+const UPLOAD_DIR = uploadSubdir('services');
 
 // GET /api/services/public?hotelId= — public; active add-ons for a hotel
 export const getPublicServices = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {

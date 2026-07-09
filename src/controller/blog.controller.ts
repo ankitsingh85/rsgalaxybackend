@@ -6,8 +6,9 @@ import sharp from 'sharp';
 import Blog from '../models/Blog.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { logAudit } from '../utils/audit';
+import { uploadSubdir } from '../config/uploadPaths';
 
-const UPLOAD_DIR = path.join(__dirname, '../../uploads/blogs');
+const UPLOAD_DIR = uploadSubdir('blogs');
 
 const listFromInput = (value: unknown): string[] => {
   if (Array.isArray(value)) return value.map(String).map(v => v.trim()).filter(Boolean);

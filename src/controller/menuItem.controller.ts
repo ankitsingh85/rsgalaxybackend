@@ -7,8 +7,9 @@ import MenuItem from '../models/MenuItem.model';
 import Hotel from '../models/Hotel.model';
 import User from '../models/User.model';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { uploadSubdir } from '../config/uploadPaths';
 
-const UPLOAD_DIR = path.join(__dirname, '../../uploads/menu-items');
+const UPLOAD_DIR = uploadSubdir('menu-items');
 
 // GET /api/menu-items/public — no auth; only available, non-archived items
 export const getPublicMenuItems = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {

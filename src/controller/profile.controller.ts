@@ -6,9 +6,10 @@ import sharp from 'sharp';
 import User from '../models/User.model';
 import SavedCard from '../models/SavedCard.model';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { uploadSubdir } from '../config/uploadPaths';
 
-const AVATAR_DIR = path.join(__dirname, '../../uploads/avatars');
-const ID_DIR = path.join(__dirname, '../../uploads/guests');
+const AVATAR_DIR = uploadSubdir('avatars');
+const ID_DIR = uploadSubdir('guests');
 
 // PUT /api/auth/me — self-service profile update
 export const updateMyProfile = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
