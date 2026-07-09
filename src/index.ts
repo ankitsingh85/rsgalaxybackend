@@ -33,7 +33,7 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 const allowedOrigins = (process.env.CLIENT_URL ||
-  'http://localhost:3000,https://rsgalaxy-frontend-5825.vercel.app')
+  'http://localhost:3000,https://rsgalaxy-frontend.vercel.app,https://rsgalaxy-frontend-5825.vercel.app')
   .split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
