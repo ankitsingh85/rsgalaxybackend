@@ -9,7 +9,7 @@ import {
   markNotificationsRead,
   snoozeNotifications,
 } from '../controller/notification.controller';
-import { authenticate, authorize } from '../middleware/auth.middleware';
+import { authenticate, authorize, requirePermission } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -17,12 +17,12 @@ router.use(authenticate);
 router.get('/my', authorize('user'), getMyNotifications);
 router.put('/my/:id/read', authorize('user'), markMyNotificationRead);
 
-router.use(authorize('admin'));
-router.get('/', getAdminNotifications);
-router.post('/', createNotification);
-router.put('/mark-read', markNotificationsRead);
-router.put('/snooze', snoozeNotifications);
-router.delete('/cleanup', cleanupNotifications);
-router.delete('/:id', deleteNotification);
+router.use(authorize('admin', 'manager'));
+router.get('/', requirePermission('notifications', 'view'), getAdminNotifications);
+router.post('/', requirePermission('notifications', 'edit'), createNotification);
+router.put('/mark-read', requirePermission('notifications', 'edit'), markNotificationsRead);
+router.put('/snooze', requirePermission('notifications', 'edit'), snoozeNotifications);
+router.delete('/cleanup', requirePermission('notifications', 'delete'), cleanupNotifications);
+router.delete('/:id', requirePermission('notifications', 'delete'), deleteNotification);
 
 export default router;

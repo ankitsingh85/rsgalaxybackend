@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
-export type AuditAction = 'create' | 'update' | 'soft-delete' | 'restore' | 'hard-delete' | 'bulk-status-update' | 'ban' | 'unban' | 'password-reset';
+export type AuditAction = 'create' | 'update' | 'soft-delete' | 'restore' | 'hard-delete' | 'bulk-status-update' | 'bulk-price-update' | 'ban' | 'unban' | 'password-reset' | 'anonymize';
 
 export interface IAuditLog extends Document {
   action: AuditAction;
@@ -18,7 +18,7 @@ const auditLogSchema = new Schema<IAuditLog>(
   {
     action: {
       type: String,
-      enum: ['create', 'update', 'soft-delete', 'restore', 'hard-delete', 'bulk-status-update', 'ban', 'unban', 'password-reset'],
+      enum: ['create', 'update', 'soft-delete', 'restore', 'hard-delete', 'bulk-status-update', 'bulk-price-update', 'ban', 'unban', 'password-reset', 'anonymize'],
       required: true,
     },
     entityType: { type: String, required: true, index: true },

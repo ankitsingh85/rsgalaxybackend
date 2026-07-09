@@ -1,9 +1,24 @@
 import { Response, NextFunction } from 'express';
 import Coupon from '../models/Coupon.model';
 import Booking from '../models/Booking.model';
+import { resolveCoupon } from '../utils/coupon';
 import { AuthRequest } from '../middleware/auth.middleware';
 
 const normalizeCode = (code: string) => code.trim().toUpperCase();
+
+// POST /api/coupons/validate — any logged-in guest, preview a discount before booking
+export const validateCoupon = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { code, bookingAmount } = req.body;
+    if (!code || bookingAmount === undefined) {
+      res.status(400).json({ success: false, message: 'Coupon code and booking amount are required' });
+      return;
+    }
+    const result = await resolveCoupon(code, Number(bookingAmount));
+    if (!result.valid) { res.status(400).json({ success: false, message: result.message }); return; }
+    res.json({ success: true, discountAmount: result.discountAmount });
+  } catch (err) { next(err); }
+};
 
 const couponAnalytics = (coupon: any, bookingStats: any) => {
   const usedCount = bookingStats?.usedCount || coupon.usedCount || 0;

@@ -1,6 +1,24 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+export interface IModulePermission {
+  view: boolean;
+  edit: boolean;
+  delete: boolean;
+}
+
+export interface IManagerPermissions {
+  bookings: IModulePermission;
+  rooms: IModulePermission;
+  restaurant: IModulePermission;
+  amenities: IModulePermission;
+  staff: IModulePermission;
+  customers: IModulePermission;
+  coupons: IModulePermission;
+  notifications: IModulePermission;
+  blogs: IModulePermission;
+}
+
 export interface IUser extends Document {
   name: string;
   email: string;
@@ -26,10 +44,33 @@ export interface IUser extends Document {
   deletedAt?: Date;
   deletedBy?: mongoose.Types.ObjectId;
 
+  // ── Guest management fields ──
+  loyaltyPoints: number;
+  loyaltyTier: 'none' | 'bronze' | 'silver' | 'gold' | 'platinum';
+  isVIP: boolean;
+  preferences?: string;
+  notes?: string;
+  idDocument?: string;
+  isAnonymized: boolean;
+  anonymizedAt?: Date;
+  dateOfBirth?: Date;
+  notificationPrefs: { email: boolean; push: boolean };
+
+  // ── Manager access control ──
+  permissions: IManagerPermissions;
+
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
+
+// Modules managers already had full access to keep their existing behavior (default true);
+// modules that were previously admin-only default to false so nothing is silently granted.
+const modulePerm = (defaultValue: boolean) => ({
+  view: { type: Boolean, default: defaultValue },
+  edit: { type: Boolean, default: defaultValue },
+  delete: { type: Boolean, default: defaultValue },
+});
 
 const userSchema = new Schema<IUser>(
   {
@@ -72,6 +113,34 @@ const userSchema = new Schema<IUser>(
     isDeleted: { type: Boolean, default: false },
     deletedAt: { type: Date },
     deletedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+
+    // ── Guest management fields ──
+    loyaltyPoints: { type: Number, default: 0, min: 0 },
+    loyaltyTier: { type: String, enum: ['none', 'bronze', 'silver', 'gold', 'platinum'], default: 'none' },
+    isVIP: { type: Boolean, default: false },
+    preferences: { type: String },
+    notes: { type: String },
+    idDocument: { type: String },
+    isAnonymized: { type: Boolean, default: false },
+    anonymizedAt: { type: Date },
+    dateOfBirth: { type: Date },
+    notificationPrefs: {
+      email: { type: Boolean, default: true },
+      push: { type: Boolean, default: true },
+    },
+
+    // ── Manager access control ──
+    permissions: {
+      bookings: modulePerm(true),
+      rooms: modulePerm(true),
+      restaurant: modulePerm(true),
+      amenities: modulePerm(true),
+      staff: modulePerm(true),
+      customers: modulePerm(false),
+      coupons: modulePerm(false),
+      notifications: modulePerm(false),
+      blogs: modulePerm(false),
+    },
   },
   { timestamps: true }
 );

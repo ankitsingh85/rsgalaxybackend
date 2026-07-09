@@ -54,7 +54,14 @@ const buildRecipients = async (
 };
 
 const sendEmails = async (recipients: INotificationRecipient[], title: string, message: string): Promise<number> => {
-  const emailRecipients = recipients.filter(recipient => recipient.email);
+  const userRecipients = recipients.filter(recipient => recipient.email && recipient.recipientType === 'user');
+  const optedOutIds = new Set(
+    (await User.find({ _id: { $in: userRecipients.map(r => r.recipientId) }, 'notificationPrefs.email': false })
+      .select('_id')
+      .lean()
+    ).map(u => String(u._id))
+  );
+  const emailRecipients = recipients.filter(recipient => recipient.email && !optedOutIds.has(String(recipient.recipientId)));
   const results = await Promise.allSettled(
     emailRecipients.map(recipient => sendNotificationEmail(recipient.email as string, recipient.name || 'there', title, message))
   );

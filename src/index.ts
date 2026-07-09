@@ -3,9 +3,9 @@ import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import connectDB from './config/db';
+import { apiLimiter } from './middleware/rateLimit.middleware';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -18,6 +18,13 @@ import auditRoutes from './routes/audit.routes';
 import couponRoutes from './routes/coupon.routes';
 import blogRoutes from './routes/blog.routes';
 import notificationRoutes from './routes/notification.routes';
+import serviceRoutes from './routes/service.routes';
+import menuItemRoutes from './routes/menuItem.routes';
+import orderRoutes from './routes/order.routes';
+import amenityUsageRoutes from './routes/amenityUsage.routes';
+import staffRoutes from './routes/staff.routes';
+import savedCardRoutes from './routes/savedCard.routes';
+import reviewRoutes from './routes/review.routes';
 
 import { errorHandler, notFound } from './middleware/error.middleware';
 
@@ -48,13 +55,10 @@ app.use(cors({
   credentials: true,
 }));
 
-// Rate limiter
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,   // 15 minutes
-  max: 200,                   // requests per IP
-  message: 'Too many requests, please try again later.',
-});
-app.use('/api/', limiter);
+// General API rate limit — 200/15min was exhausted by normal admin/manager dashboard use
+// alone (8-10 parallel GETs per page load), which meant even login (also under /api/)
+// started getting blocked. Auth's own dedicated limiter is applied in auth.routes.ts.
+app.use('/api/', apiLimiter);
 
 // Body parser
 app.use(express.json({ limit: '10mb' }));
@@ -90,6 +94,13 @@ app.use('/api/audit-logs', auditRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/services', serviceRoutes);
+app.use('/api/menu-items', menuItemRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/amenity-usage', amenityUsageRoutes);
+app.use('/api/staff', staffRoutes);
+app.use('/api/saved-cards', savedCardRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Error handlers
 app.use(notFound);

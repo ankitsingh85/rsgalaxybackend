@@ -1,5 +1,12 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
+export interface IExtraService {
+  serviceId: mongoose.Types.ObjectId;
+  name: string;
+  price: number;
+  addedAt: Date;
+}
+
 export interface IBooking extends Document {
   bookingRef: string;
   userId: mongoose.Types.ObjectId;
@@ -19,6 +26,11 @@ export interface IBooking extends Document {
   status: 'pending' | 'confirmed' | 'checked-in' | 'checked-out' | 'cancelled';
   paymentStatus: 'pending' | 'paid' | 'refunded';
   specialRequests?: string;
+  extraServices: IExtraService[];
+  checkInActualAt?: Date;
+  checkOutActualAt?: Date;
+  cancellationReason?: string;
+  cancelledAt?: Date;
   createdAt: Date;
 }
 
@@ -50,6 +62,18 @@ const bookingSchema = new Schema<IBooking>(
       default: 'pending',
     },
     specialRequests: { type: String },
+    extraServices: [
+      {
+        serviceId: { type: Schema.Types.ObjectId, ref: 'Service', required: true },
+        name: { type: String, required: true },
+        price: { type: Number, required: true, min: 0 },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
+    checkInActualAt: { type: Date },
+    checkOutActualAt: { type: Date },
+    cancellationReason: { type: String },
+    cancelledAt: { type: Date },
   },
   { timestamps: true }
 );

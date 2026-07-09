@@ -1,12 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import sharp from 'sharp';
+import bcrypt from 'bcryptjs';
 import User from '../models/User.model';
 import Hotel from '../models/Hotel.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { logAudit } from '../utils/audit';
 import { sendAccountBannedEmail, sendPasswordChangedEmail } from '../utils/email';
 
+const UPLOAD_DIR = path.join(__dirname, '../../uploads/guests');
+
+// A manager (now that Customers routes are open to them, gated by permission) may only ever
+// act on customer accounts (role 'user') — never on admin/manager accounts, regardless of
+// what's checked in their permission matrix. Returns: undefined = not found, null = forbidden
+// target for a manager caller, otherwise the fetched user document.
+const assertManagerCanTarget = async (req: AuthRequest, targetId: string | string[]) => {
+  const target = await User.findById(String(targetId));
+  if (!target) return undefined;
+  if (req.user!.role === 'manager' && target.role !== 'user') return null;
+  return target;
+};
+
 // ──────────────────────────────────────────
-// GET /api/users  (admin only — get all users)
+// GET /api/users  (admin/manager — get all users)
 // ──────────────────────────────────────────
 export const getUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -19,7 +37,7 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction):
 };
 
 // ──────────────────────────────────────────
-// GET /api/users/deleted  (admin only)
+// GET /api/users/deleted  (admin/manager)
 // ──────────────────────────────────────────
 export const getDeletedUsers = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -29,11 +47,11 @@ export const getDeletedUsers = async (_req: Request, res: Response, next: NextFu
 };
 
 // ──────────────────────────────────────────
-// POST /api/users/customer  (admin creates customer)
+// POST /api/users/customer  (admin/manager creates customer)
 // ──────────────────────────────────────────
 export const createCustomer = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, preferences, notes, idDocument, loyaltyTier, isVIP } = req.body;
 
     if (!name || !email || !password) {
       res.status(400).json({ success: false, message: 'Name, email, and password are required' });
@@ -47,10 +65,34 @@ export const createCustomer = async (req: AuthRequest, res: Response, next: Next
     const existing = await User.findOne({ email });
     if (existing) { res.status(400).json({ success: false, message: 'An account with this email already exists' }); return; }
 
-    const user = await User.create({ name, email, password, phone, role: 'user' });
+    const user = await User.create({
+      name, email, password, phone, role: 'user',
+      preferences, notes, idDocument,
+      loyaltyTier: loyaltyTier || 'none',
+      isVIP: !!isVIP,
+    });
     await logAudit({ action: 'create', entityType: 'User', entityId: user.id, entityName: user.name, req });
 
     res.status(201).json({ success: true, message: 'Customer created', user });
+  } catch (err) { next(err); }
+};
+
+// ──────────────────────────────────────────
+// POST /api/users/upload-id  (admin/manager — guest ID document photo)
+// ──────────────────────────────────────────
+export const uploadGuestId = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const file = req.file as Express.Multer.File | undefined;
+    if (!file) { res.status(400).json({ success: false, message: 'No image provided' }); return; }
+
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    const filename = `${crypto.randomUUID()}.jpg`;
+    await sharp(file.buffer)
+      .resize({ width: 1200, withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toFile(path.join(UPLOAD_DIR, filename));
+
+    res.json({ success: true, url: `${req.protocol}://${req.get('host')}/uploads/guests/${filename}` });
   } catch (err) { next(err); }
 };
 
@@ -59,7 +101,7 @@ export const createCustomer = async (req: AuthRequest, res: Response, next: Next
 // ──────────────────────────────────────────
 export const createManager = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { name, email, password, phone, managedHotelId } = req.body;
+    const { name, email, password, phone, managedHotelId, permissions } = req.body;
 
     if (!name || !email || !password) {
       res.status(400).json({ success: false, message: 'Name, email, and password are required' });
@@ -70,7 +112,7 @@ export const createManager = async (req: Request, res: Response, next: NextFunct
     if (existing) { res.status(400).json({ success: false, message: 'Email already exists' }); return; }
 
     const user = await User.create({
-      name, email, password, phone, managedHotelId,
+      name, email, password, phone, managedHotelId, permissions,
       role: 'manager',
     });
 
@@ -143,13 +185,20 @@ export const getAdmins = async (_req: Request, res: Response, next: NextFunction
 };
 
 // ──────────────────────────────────────────
-// PUT /api/users/:id  (update user)
+// PUT /api/users/:id  (update user — admin/manager, manager restricted to customer targets)
 // ──────────────────────────────────────────
 export const updateUser = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const target = await assertManagerCanTarget(req, req.params.id);
+    if (target === undefined) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+    if (target === null) { res.status(403).json({ success: false, message: 'Managers can only manage customer accounts' }); return; }
+
     const updates: any = { ...req.body };
     delete updates.password;
     delete updates.role;
+    // `permissions` is allowed through here — this is how an admin edits an existing
+    // manager's access matrix. Safe because a manager caller can never reach a manager/admin
+    // target via this route at all (assertManagerCanTarget only allows 'user' targets for them).
     const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
     if (!user) { res.status(404).json({ success: false, message: 'User not found' }); return; }
     res.json({ success: true, message: 'User updated', user });
@@ -185,7 +234,7 @@ export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunc
 };
 
 // ──────────────────────────────────────────
-// PUT /api/users/:id/toggle-status  (activate/deactivate)
+// PUT /api/users/:id/toggle-status  (activate/deactivate — admin/manager, customers only for manager)
 // ──────────────────────────────────────────
 export const toggleUserStatus = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -194,8 +243,9 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response, next: Ne
       return;
     }
 
-    const user = await User.findById(req.params.id);
-    if (!user) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+    const user = await assertManagerCanTarget(req, req.params.id);
+    if (user === undefined) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+    if (user === null) { res.status(403).json({ success: false, message: 'Managers can only manage customer accounts' }); return; }
 
     user.isActive = !user.isActive;
     await user.save();
@@ -209,7 +259,7 @@ export const toggleUserStatus = async (req: AuthRequest, res: Response, next: Ne
 };
 
 // ──────────────────────────────────────────
-// PUT /api/users/:id/reset-password  (admin only)
+// PUT /api/users/:id/reset-password  (admin/manager, customers only for manager)
 // ──────────────────────────────────────────
 export const resetUserPassword = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -219,8 +269,9 @@ export const resetUserPassword = async (req: AuthRequest, res: Response, next: N
       return;
     }
 
-    const user = await User.findById(req.params.id);
-    if (!user) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+    const user = await assertManagerCanTarget(req, req.params.id);
+    if (user === undefined) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+    if (user === null) { res.status(403).json({ success: false, message: 'Managers can only manage customer accounts' }); return; }
 
     user.password = newPassword;
     await user.save();
@@ -233,13 +284,17 @@ export const resetUserPassword = async (req: AuthRequest, res: Response, next: N
 };
 
 // ──────────────────────────────────────────
-// PUT /api/users/:id/ban  (admin only)
+// PUT /api/users/:id/ban  (admin/manager, customers only for manager)
 // ──────────────────────────────────────────
 export const banUser = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { reason } = req.body;
     if (!reason) { res.status(400).json({ success: false, message: 'A ban reason is required' }); return; }
     if (req.user!.id === req.params.id) { res.status(400).json({ success: false, message: 'You cannot ban yourself' }); return; }
+
+    const target = await assertManagerCanTarget(req, req.params.id);
+    if (target === undefined) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+    if (target === null) { res.status(403).json({ success: false, message: 'Managers can only manage customer accounts' }); return; }
 
     const user = await User.findByIdAndUpdate(
       req.params.id,
@@ -256,10 +311,14 @@ export const banUser = async (req: AuthRequest, res: Response, next: NextFunctio
 };
 
 // ──────────────────────────────────────────
-// PUT /api/users/:id/unban  (admin only)
+// PUT /api/users/:id/unban  (admin/manager, customers only for manager)
 // ──────────────────────────────────────────
 export const unbanUser = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const target = await assertManagerCanTarget(req, req.params.id);
+    if (target === undefined) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+    if (target === null) { res.status(403).json({ success: false, message: 'Managers can only manage customer accounts' }); return; }
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { isBanned: false, $unset: { banReason: 1, bannedAt: 1, bannedBy: 1 } },
@@ -274,11 +333,15 @@ export const unbanUser = async (req: AuthRequest, res: Response, next: NextFunct
 };
 
 // ──────────────────────────────────────────
-// PUT /api/users/:id/soft-delete  (admin only)
+// PUT /api/users/:id/soft-delete  (admin/manager, customers only for manager)
 // ──────────────────────────────────────────
 export const softDeleteUser = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (req.user!.id === req.params.id) { res.status(400).json({ success: false, message: 'You cannot delete your own account' }); return; }
+
+    const target = await assertManagerCanTarget(req, req.params.id);
+    if (target === undefined) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+    if (target === null) { res.status(403).json({ success: false, message: 'Managers can only manage customer accounts' }); return; }
 
     const user = await User.findByIdAndUpdate(
       req.params.id,
@@ -294,10 +357,47 @@ export const softDeleteUser = async (req: AuthRequest, res: Response, next: Next
 };
 
 // ──────────────────────────────────────────
-// PUT /api/users/:id/restore  (admin only)
+// PUT /api/users/:id/anonymize  (admin/manager, customers only for manager — GDPR)
+// ──────────────────────────────────────────
+export const anonymizeUser = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (req.user!.id === req.params.id) { res.status(400).json({ success: false, message: 'You cannot anonymize your own account' }); return; }
+
+    const target = await assertManagerCanTarget(req, req.params.id);
+    if (target === undefined) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+    if (target === null) { res.status(403).json({ success: false, message: 'Managers can only manage customer accounts' }); return; }
+
+    const randomPassword = await bcrypt.hash(crypto.randomUUID(), 12);
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      {
+        name: 'Deleted Guest',
+        email: `deleted-${target.id}@anonymized.local`,
+        password: randomPassword,
+        isActive: false,
+        isAnonymized: true,
+        anonymizedAt: new Date(),
+        $unset: { phone: 1, preferences: 1, notes: 1, idDocument: 1, avatar: 1 },
+      },
+      { new: true }
+    );
+    if (!user) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+
+    await logAudit({ action: 'anonymize', entityType: 'User', entityId: user.id, entityName: target.name, req });
+
+    res.json({ success: true, message: 'Guest anonymized', user });
+  } catch (err) { next(err); }
+};
+
+// ──────────────────────────────────────────
+// PUT /api/users/:id/restore  (admin/manager, customers only for manager)
 // ──────────────────────────────────────────
 export const restoreUser = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const target = await assertManagerCanTarget(req, req.params.id);
+    if (target === undefined) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+    if (target === null) { res.status(403).json({ success: false, message: 'Managers can only manage customer accounts' }); return; }
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { isDeleted: false, $unset: { deletedAt: 1, deletedBy: 1 } },

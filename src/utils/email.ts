@@ -187,6 +187,115 @@ export const sendAccountBannedEmail = async (to: string, userName: string, reaso
   }
 };
 
+// ── Send check-in confirmation email ──
+export const sendBookingCheckInEmail = async (to: string, userName: string, booking: any): Promise<void> => {
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || `"RS Galaxy Hotel" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `✅ Checked In — ${booking.hotelName} — RS Galaxy Hotel`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 40px 30px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-family: Georgia, serif; font-size: 28px;">✅ You're Checked In</h1>
+        </div>
+        <div style="padding: 40px 30px;">
+          <p style="font-size: 16px; color: #1f2937;">Hello <strong>${userName}</strong>,</p>
+          <p style="font-size: 14px; color: #4b5563; line-height: 1.7;">
+            You've been checked in to <strong>${booking.hotelName}</strong>, Room <strong>${booking.roomNumber}</strong> (${booking.roomType}).
+          </p>
+          <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 24px 0;">
+            <p style="font-size: 13px; color: #065f46; margin: 0;">Booking Ref: <strong>${booking.bookingRef}</strong></p>
+            <p style="font-size: 13px; color: #065f46; margin: 4px 0 0;">Checked in: ${new Date().toLocaleString()}</p>
+          </div>
+          <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+            Enjoy your stay!<br>
+            <strong style="color: #f59e0b;">RS Galaxy Hotel Team</strong>
+          </p>
+        </div>
+      </div>
+    `,
+  };
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error: any) {
+    console.error('❌ Check-in email failed:', error.message);
+  }
+};
+
+// ── Send check-out confirmation email ──
+export const sendBookingCheckOutEmail = async (to: string, userName: string, booking: any): Promise<void> => {
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || `"RS Galaxy Hotel" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `👋 Checked Out — ${booking.hotelName} — RS Galaxy Hotel`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+        <div style="background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); padding: 40px 30px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-family: Georgia, serif; font-size: 28px;">👋 Checked Out</h1>
+        </div>
+        <div style="padding: 40px 30px;">
+          <p style="font-size: 16px; color: #1f2937;">Hello <strong>${userName}</strong>,</p>
+          <p style="font-size: 14px; color: #4b5563; line-height: 1.7;">
+            Thank you for staying at <strong>${booking.hotelName}</strong>. You've been checked out of Room <strong>${booking.roomNumber}</strong>.
+          </p>
+          <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 24px 0;">
+            <p style="font-size: 13px; color: #92400e; margin: 0;">Booking Ref: <strong>${booking.bookingRef}</strong></p>
+            <p style="font-size: 13px; color: #92400e; margin: 4px 0 0;">Checked out: ${new Date().toLocaleString()}</p>
+          </div>
+          <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+            We hope to see you again soon!<br>
+            <strong style="color: #f59e0b;">RS Galaxy Hotel Team</strong>
+          </p>
+        </div>
+      </div>
+    `,
+  };
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error: any) {
+    console.error('❌ Check-out email failed:', error.message);
+  }
+};
+
+// ── Send booking cancellation email ──
+export const sendBookingCancelledEmail = async (to: string, userName: string, booking: any, reason: string): Promise<void> => {
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || `"RS Galaxy Hotel" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `🚫 Booking Cancelled — ${booking.hotelName} — RS Galaxy Hotel`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+        <div style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); padding: 40px 30px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-family: Georgia, serif; font-size: 28px;">🚫 Booking Cancelled</h1>
+        </div>
+        <div style="padding: 40px 30px;">
+          <p style="font-size: 16px; color: #1f2937;">Hello <strong>${userName}</strong>,</p>
+          <p style="font-size: 14px; color: #4b5563; line-height: 1.7;">
+            Your booking at <strong>${booking.hotelName}</strong>, Room <strong>${booking.roomNumber}</strong> (${booking.roomType}) has been cancelled.
+          </p>
+          <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; border-radius: 8px; margin: 24px 0;">
+            <p style="font-size: 13px; color: #991b1b; margin: 0;">Booking Ref: <strong>${booking.bookingRef}</strong></p>
+            <p style="font-size: 13px; color: #991b1b; margin: 4px 0 0;">Reason: ${reason}</p>
+          </div>
+          <p style="font-size: 14px; color: #6b7280;">
+            If you have any questions, please contact us at
+            <a href="mailto:support@rsgalaxy.com" style="color: #ef4444;">support@rsgalaxy.com</a>
+          </p>
+          <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
+            Best regards,<br>
+            <strong style="color: #f59e0b;">RS Galaxy Hotel Team</strong>
+          </p>
+        </div>
+      </div>
+    `,
+  };
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error: any) {
+    console.error('❌ Cancellation email failed:', error.message);
+  }
+};
+
 export const sendNotificationEmail = async (to: string, userName: string, title: string, message: string): Promise<void> => {
   const mailOptions = {
     from: process.env.EMAIL_FROM || `"RS Galaxy Hotel" <${process.env.EMAIL_USER}>`,

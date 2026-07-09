@@ -25,3 +25,12 @@ export const generateBookingRef = (): string => {
   const random = Math.floor(Math.random() * 99999).toString().padStart(5, '0');
   return `RSG${yy}${mm}${dd}${random}`;
 };
+
+export const generateOrderRef = (): string => {
+  const date = new Date();
+  const yy = date.getFullYear().toString().slice(-2);
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const random = Math.floor(Math.random() * 99999).toString().padStart(5, '0');
+  return `ORD${yy}${mm}${dd}${random}`;
+};
