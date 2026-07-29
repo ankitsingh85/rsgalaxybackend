@@ -1,15 +1,16 @@
 import { Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import Booking from '../models/Booking.model';
 import Room from '../models/Room.model';
 import User from '../models/User.model';
-import Service from '../models/Service.model';
 import AmenityUsage from '../models/AmenityUsage.model';
 import { generateBookingRef } from '../utils/jwt';
 import { calculateStayPrice } from '../utils/pricing';
 import { generateInvoicePdf } from '../utils/invoice';
-import { resolveCoupon } from '../utils/coupon';
+import { resolveBookingPricing } from '../utils/bookingPricing';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { sendBookingCheckInEmail, sendBookingCheckOutEmail, sendBookingCancelledEmail } from '../utils/email';
+import getRazorpay from '../config/razorpay';
 
 const RESCHEDULE_CUTOFF_MS = 24 * 60 * 60 * 1000;
 const CANCEL_CUTOFF_MS = 48 * 60 * 60 * 1000;
@@ -29,12 +30,38 @@ export const getBookings = async (req: AuthRequest, res: Response, next: NextFun
   } catch (err) { next(err); }
 };
 
+// POST /api/bookings/razorpay-order — creates a Razorpay order for the server-computed
+// total (never trust a client-supplied amount) so the checkout widget can be opened.
+export const createRazorpayOrder = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { roomId, checkIn, checkOut, extraServices, couponCode, mealPackageIndices, adults } = req.body;
+    const room = await Room.findById(roomId);
+    if (!room) { res.status(404).json({ success: false, message: 'Room not found' }); return; }
+    if (room.isDeleted || room.status !== 'available') {
+      res.status(400).json({ success: false, message: 'Room is not available' });
+      return;
+    }
+
+    const pricing = await resolveBookingPricing(room, new Date(checkIn), new Date(checkOut), mealPackageIndices, extraServices, couponCode, adults, req.user!.id);
+    if ('error' in pricing) { res.status(400).json({ success: false, message: pricing.error }); return; }
+
+    const order = await getRazorpay().orders.create({
+      amount: Math.round(pricing.totalPrice * 100),
+      currency: 'INR',
+      receipt: `bkg_${Date.now()}`,
+    });
+
+    res.json({ success: true, orderId: order.id, amount: order.amount, currency: order.currency, keyId: process.env.RAZORPAY_KEY_ID });
+  } catch (err) { next(err); }
+};
+
 // POST /api/bookings
 export const createBooking = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const {
-      roomId, checkIn, checkOut, guests, specialRequests, userId, status, paymentStatus,
-      extraServices, couponCode,
+      roomId, checkIn, checkOut, guests, adults, specialRequests, userId, status, paymentStatus,
+      extraServices, couponCode, mealPackageIndices,
+      razorpayOrderId, razorpayPaymentId, razorpaySignature,
     } = req.body;
     const room = await Room.findById(roomId);
     if (!room) { res.status(404).json({ success: false, message: 'Room not found' }); return; }
@@ -45,8 +72,14 @@ export const createBooking = async (req: AuthRequest, res: Response, next: NextF
 
     const inDate = new Date(checkIn);
     const outDate = new Date(checkOut);
-    const { nights, totalPrice: stayTotal } = calculateStayPrice(room, inDate, outDate);
-    if (nights < 1) { res.status(400).json({ success: false, message: 'Invalid dates' }); return; }
+
+    const bookingUserId = ['admin', 'manager'].includes(req.user!.role) && userId ? userId : req.user!.id;
+    const user = await User.findById(bookingUserId);
+    if (!user) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+
+    const pricing = await resolveBookingPricing(room, inDate, outDate, mealPackageIndices, extraServices, couponCode, adults, bookingUserId);
+    if ('error' in pricing) { res.status(400).json({ success: false, message: pricing.error }); return; }
+    const { totalPrice, selectedMealPlans, resolvedServices, discountAmount, appliedCouponCode, mattressAdded, mattressCostPerNight } = pricing;
 
     const overlap = await Booking.findOne({
       roomId: room.id,
@@ -56,36 +89,23 @@ export const createBooking = async (req: AuthRequest, res: Response, next: NextF
     });
     if (overlap) { res.status(400).json({ success: false, message: 'Room is not available for the selected dates' }); return; }
 
-    const bookingUserId = ['admin', 'manager'].includes(req.user!.role) && userId ? userId : req.user!.id;
-    const user = await User.findById(bookingUserId);
-    if (!user) { res.status(404).json({ success: false, message: 'User not found' }); return; }
-
-    let resolvedServices: any[] = [];
-    let servicesTotal = 0;
-    if (Array.isArray(extraServices) && extraServices.length > 0) {
-      for (const line of extraServices) {
-        const service = await Service.findById(line.serviceId);
-        if (!service || !service.isActive || service.hotelId.toString() !== room.hotelId.toString()) {
-          res.status(400).json({ success: false, message: `"${service?.name || 'Service'}" is not available for this hotel` });
-          return;
-        }
-        const quantity = Number(line.quantity || 1);
-        resolvedServices.push({ serviceId: service.id, name: service.name, price: service.price, addedAt: new Date() });
-        servicesTotal += service.price * quantity;
+    const isStaff = ['admin', 'manager'].includes(req.user!.role);
+    if (!isStaff) {
+      // Guests must complete Razorpay checkout first; verify the signature server-side
+      // before trusting the payment — never take a client's word that payment succeeded.
+      if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+        res.status(400).json({ success: false, message: 'Payment verification is required to complete this booking' });
+        return;
+      }
+      const expectedSignature = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET as string)
+        .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+        .digest('hex');
+      if (expectedSignature !== razorpaySignature) {
+        res.status(400).json({ success: false, message: 'Payment verification failed' });
+        return;
       }
     }
-
-    let discountAmount = 0;
-    let appliedCouponCode: string | undefined;
-    const preDiscountTotal = stayTotal + servicesTotal;
-    if (couponCode) {
-      const result = await resolveCoupon(couponCode, preDiscountTotal);
-      if (!result.valid) { res.status(400).json({ success: false, message: result.message }); return; }
-      discountAmount = result.discountAmount;
-      appliedCouponCode = result.coupon!.code;
-    }
-
-    const totalPrice = Math.max(0, preDiscountTotal - discountAmount);
 
     const booking = await Booking.create({
       bookingRef: generateBookingRef(),
@@ -95,17 +115,21 @@ export const createBooking = async (req: AuthRequest, res: Response, next: NextF
       hotelId: room.hotelId,
       hotelName: room.hotelName,
       roomId: room.id,
-      roomNumber: room.roomNumber,
       roomType: room.type,
+      mealPlans: selectedMealPlans,
       checkIn: inDate,
       checkOut: outDate,
       guests,
+      mattressAdded,
+      mattressCostPerNight,
       totalPrice,
       extraServices: resolvedServices,
       couponCode: appliedCouponCode,
       discountAmount,
-      status: ['admin', 'manager'].includes(req.user!.role) && status ? status : 'confirmed',
-      paymentStatus: ['admin', 'manager'].includes(req.user!.role) && paymentStatus ? paymentStatus : 'paid',
+      status: isStaff && status ? status : 'confirmed',
+      paymentStatus: isStaff ? (paymentStatus || 'paid') : 'paid',
+      razorpayOrderId: isStaff ? undefined : razorpayOrderId,
+      razorpayPaymentId: isStaff ? undefined : razorpayPaymentId,
       specialRequests,
     });
 
@@ -127,7 +151,6 @@ export const updateBooking = async (req: AuthRequest, res: Response, next: NextF
       data.hotelId = room.hotelId;
       data.hotelName = room.hotelName;
       data.roomId = room.id;
-      data.roomNumber = room.roomNumber;
       data.roomType = room.type;
     }
 
@@ -275,7 +298,6 @@ export const rescheduleMyBooking = async (req: AuthRequest, res: Response, next:
     const servicesTotal = (booking.extraServices || []).reduce((sum: number, s: any) => sum + Number(s.price || 0), 0);
 
     booking.roomId = targetRoom.id as any;
-    booking.roomNumber = targetRoom.roomNumber;
     booking.roomType = targetRoom.type;
     booking.hotelId = targetRoom.hotelId;
     booking.hotelName = targetRoom.hotelName;

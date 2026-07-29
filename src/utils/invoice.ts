@@ -18,7 +18,8 @@ export const generateInvoicePdf = (booking: IBooking, usage: IAmenityUsage[], st
   doc.fontSize(11).fillColor('#111827').text(`Guest: ${booking.userName}`);
   doc.fontSize(10).fillColor('#6b7280').text(booking.userEmail);
   doc.moveDown(0.5);
-  doc.fontSize(11).fillColor('#111827').text(`${booking.hotelName} — Room ${booking.roomNumber} (${booking.roomType})`);
+  const mealPlanNames = booking.mealPlans?.map(p => p.name).join(', ');
+  doc.fontSize(11).fillColor('#111827').text(`${booking.hotelName} — ${booking.roomType} Room${mealPlanNames ? ` (${mealPlanNames})` : ''}`);
   doc.fontSize(10).fillColor('#6b7280').text(
     `${new Date(booking.checkIn).toLocaleDateString()} → ${new Date(booking.checkOut).toLocaleDateString()}${stay ? ` · ${stay.nights} night(s)` : ''}`
   );

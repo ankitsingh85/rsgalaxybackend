@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  getBookings, createBooking, updateBooking, deleteBooking,
+  getBookings, createBooking, createRazorpayOrder, updateBooking, deleteBooking,
   checkInBooking, checkOutBooking, cancelBooking,
   rescheduleMyBooking, downloadInvoice,
 } from '../controller/booking.controller';
@@ -10,6 +10,7 @@ const router = Router();
 
 router.use(authenticate);
 router.get('/', requirePermission('bookings', 'view'), getBookings);
+router.post('/razorpay-order', createRazorpayOrder);
 router.post('/', requirePermission('bookings', 'edit'), createBooking);
 router.put('/:id', authorize('admin', 'manager'), requirePermission('bookings', 'edit'), updateBooking);
 router.put('/:id/check-in', authorize('admin', 'manager'), requirePermission('bookings', 'edit'), checkInBooking);

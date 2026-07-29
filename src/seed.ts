@@ -82,58 +82,83 @@ const seed = async () => {
 
     // ── ROOMS ──
     console.log('🛏️  Creating rooms...');
+    // Meal add-ons are an EXTRA cost per night on top of the room rate, not a full
+    // alternate rate — guests can combine multiple add-ons at once.
+    const mealPackages = (base: number) => [
+      { name: 'Add Breakfast', price: Math.round(base * 0.08), breakfast: true, lunch: false, dinner: false },
+      { name: 'Add All Meals', price: Math.round(base * 0.20), breakfast: true, lunch: true, dinner: true },
+    ];
+
     const room1 = await Room.create({
       hotelId: goa.id, hotelName: goa.name,
-      roomNumber: '101', type: 'standard', price: 8500, capacity: 2,
+      type: 'Standard', bedType: '1 King Bed', price: 8500,
+      capacityAdults: 2, capacityKids: 1,
       description: 'Bright standard room with sea view balcony.',
-      amenities: ['King Bed', 'Sea View', 'WiFi', 'AC', 'Mini Bar', 'TV'],
-      images: ['https://images.pexels.com/photos/3688261/pexels-photo-3688261.jpeg?w=600'],
-      status: 'available', floor: 1, size: 38,
+      amenities: ['Sea View', 'WiFi', 'AC', 'Mini Bar', 'TV'],
+      innerImages: ['https://images.pexels.com/photos/3688261/pexels-photo-3688261.jpeg?w=600'],
+      outerImages: [], washroomImages: [],
+      mealPackages: mealPackages(8500),
+      status: 'available', size: 38,
     });
 
     const room2 = await Room.create({
       hotelId: goa.id, hotelName: goa.name,
-      roomNumber: '201', type: 'deluxe', price: 14500, capacity: 2,
+      type: 'Deluxe', bedType: '1 King Bed', price: 14500,
+      capacityAdults: 2, capacityKids: 1,
       description: 'Deluxe beachfront room with plunge pool.',
-      amenities: ['King Bed', 'Plunge Pool', 'Sunset View', 'WiFi', 'AC', 'Jacuzzi'],
-      images: ['https://images.pexels.com/photos/14464348/pexels-photo-14464348.jpeg?w=600'],
-      status: 'available', floor: 2, size: 60,
+      amenities: ['Plunge Pool', 'Sunset View', 'WiFi', 'AC', 'Jacuzzi'],
+      innerImages: ['https://images.pexels.com/photos/14464348/pexels-photo-14464348.jpeg?w=600'],
+      outerImages: [], washroomImages: [],
+      mealPackages: mealPackages(14500),
+      status: 'available', size: 60,
     });
 
     await Room.create({
       hotelId: goa.id, hotelName: goa.name,
-      roomNumber: '301', type: 'suite', price: 28000, capacity: 4,
+      type: 'Suite', bedType: '2 King Beds', price: 28000,
+      capacityAdults: 4, capacityKids: 2,
       description: 'Flagship beach suite with private entry.',
       amenities: ['2 Bedrooms', 'Private Beach', 'Rooftop Jacuzzi', 'Butler'],
-      images: ['https://images.pexels.com/photos/37240654/pexels-photo-37240654.jpeg?w=600'],
-      status: 'available', floor: 3, size: 130,
+      innerImages: ['https://images.pexels.com/photos/37240654/pexels-photo-37240654.jpeg?w=600'],
+      outerImages: [], washroomImages: [],
+      mealPackages: mealPackages(28000),
+      status: 'available', size: 130,
     });
 
     await Room.create({
       hotelId: rishikesh.id, hotelName: rishikesh.name,
-      roomNumber: '101', type: 'standard', price: 7000, capacity: 2,
+      type: 'Standard', bedType: '1 Queen Bed', price: 7000,
+      capacityAdults: 2, capacityKids: 1,
       description: 'Forest view room with balcony.',
-      amenities: ['Queen Bed', 'Forest View', 'WiFi', 'AC', 'Yoga Mat'],
-      images: ['https://images.pexels.com/photos/19332135/pexels-photo-19332135.jpeg?w=600'],
-      status: 'available', floor: 1, size: 34,
+      amenities: ['Forest View', 'WiFi', 'AC', 'Yoga Mat'],
+      innerImages: ['https://images.pexels.com/photos/19332135/pexels-photo-19332135.jpeg?w=600'],
+      outerImages: [], washroomImages: [],
+      mealPackages: mealPackages(7000),
+      status: 'available', size: 34,
     });
 
     await Room.create({
       hotelId: rishikesh.id, hotelName: rishikesh.name,
-      roomNumber: '201', type: 'deluxe', price: 13000, capacity: 2,
+      type: 'Deluxe', bedType: '1 King Bed', price: 13000,
+      capacityAdults: 2, capacityKids: 1,
       description: 'Deluxe Ganges river view retreat.',
-      amenities: ['King Bed', 'Ganges View', 'Open Sit-Out', 'WiFi', 'Ayurvedic Kit'],
-      images: ['https://images.pexels.com/photos/2725675/pexels-photo-2725675.jpeg?w=600'],
-      status: 'available', floor: 2, size: 55,
+      amenities: ['Ganges View', 'Open Sit-Out', 'WiFi', 'Ayurvedic Kit'],
+      innerImages: ['https://images.pexels.com/photos/2725675/pexels-photo-2725675.jpeg?w=600'],
+      outerImages: [], washroomImages: [],
+      mealPackages: mealPackages(13000),
+      status: 'available', size: 55,
     });
 
     await Room.create({
       hotelId: rishikesh.id, hotelName: rishikesh.name,
-      roomNumber: '301', type: 'suite', price: 25000, capacity: 4,
+      type: 'Suite', bedType: '2 King Beds', price: 25000,
+      capacityAdults: 4, capacityKids: 2,
       description: 'Himalayan Suite with meditation deck.',
       amenities: ['2 Bedrooms', 'Himalayan View', 'Meditation Deck', 'In-Suite Spa', 'Butler'],
-      images: ['https://images.pexels.com/photos/15196909/pexels-photo-15196909.jpeg?w=600'],
-      status: 'available', floor: 3, size: 110,
+      innerImages: ['https://images.pexels.com/photos/15196909/pexels-photo-15196909.jpeg?w=600'],
+      outerImages: [], washroomImages: [],
+      mealPackages: mealPackages(25000),
+      status: 'available', size: 110,
     });
 
     // ── BOOKINGS ──
@@ -142,7 +167,7 @@ const seed = async () => {
       bookingRef: generateBookingRef(),
       userId: customer.id, userName: customer.name, userEmail: customer.email,
       hotelId: goa.id, hotelName: goa.name,
-      roomId: room2.id, roomNumber: room2.roomNumber, roomType: room2.type,
+      roomId: room2.id, roomType: room2.type,
       checkIn: new Date('2025-08-15'), checkOut: new Date('2025-08-20'),
       guests: 2, totalPrice: 72500,
       status: 'confirmed', paymentStatus: 'paid',
@@ -153,7 +178,7 @@ const seed = async () => {
       bookingRef: generateBookingRef(),
       userId: customer.id, userName: customer.name, userEmail: customer.email,
       hotelId: rishikesh.id, hotelName: rishikesh.name,
-      roomId: room1.id, roomNumber: '101', roomType: 'standard',
+      roomId: room1.id, roomType: 'Standard',
       checkIn: new Date('2025-09-10'), checkOut: new Date('2025-09-15'),
       guests: 2, totalPrice: 35000,
       status: 'pending', paymentStatus: 'pending',

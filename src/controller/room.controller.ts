@@ -20,7 +20,7 @@ export const getRooms = async (req: AuthRequest, res: Response, next: NextFuncti
     if (hotelId) query.hotelId = hotelId;
     if (type) query.type = type;
     if (status) query.status = status;
-    if (guests) query.capacity = { $gte: Number(guests) };
+    if (guests) query.capacityAdults = { $gte: Number(guests) };
     if (minPrice || maxPrice) {
       query.price = {};
       if (minPrice) query.price.$gte = Number(minPrice);
@@ -28,7 +28,7 @@ export const getRooms = async (req: AuthRequest, res: Response, next: NextFuncti
     }
     if (search) {
       const re = new RegExp(String(search), 'i');
-      query.$or = [{ roomNumber: re }, { hotelName: re }];
+      query.$or = [{ type: re }, { bedType: re }, { hotelName: re }];
     }
     if (city || minRating) {
       const hotelQuery: any = { isDeleted: { $ne: true } };
@@ -64,7 +64,7 @@ export const getRoomAvailability = async (req: AuthRequest, res: Response, next:
     const rangeEnd = new Date(toDate.getTime() + 86400000); // exclusive upper bound
 
     const [rooms, bookings] = await Promise.all([
-      Room.find({ hotelId, isDeleted: { $ne: true } }).sort({ roomNumber: 1 }),
+      Room.find({ hotelId, isDeleted: { $ne: true } }).sort({ type: 1 }),
       Booking.find({
         hotelId,
         status: { $nin: ['cancelled'] },
@@ -96,7 +96,7 @@ export const getRoomAvailability = async (req: AuthRequest, res: Response, next:
       for (const key of dateKeys) {
         days[key] = bookedDates.has(key) ? 'occupied' : room.status === 'maintenance' ? 'maintenance' : 'available';
       }
-      return { roomId: room.id, roomNumber: room.roomNumber, type: room.type, floor: room.floor, status: room.status, days };
+      return { roomId: room.id, type: room.type, bedType: room.bedType, status: room.status, days };
     });
 
     const occupancy: Record<string, { total: number; occupied: number; rate: number }> = {};
@@ -158,7 +158,7 @@ export const createRoom = async (req: AuthRequest, res: Response, next: NextFunc
     hotel.totalRooms = count;
     await hotel.save();
 
-    await logAudit({ action: 'create', entityType: 'Room', entityId: room.id, entityName: `${room.hotelName} — ${room.roomNumber}`, req, meta: { snapshot: room.toObject() } });
+    await logAudit({ action: 'create', entityType: 'Room', entityId: room.id, entityName: `${room.hotelName} — ${room.type}`, req, meta: { snapshot: room.toObject() } });
     res.status(201).json({ success: true, message: 'Room created', room });
   } catch (err) { next(err); }
 };
@@ -232,9 +232,19 @@ export const bulkUpdatePrice = async (req: AuthRequest, res: Response, next: Nex
 // PUT /api/rooms/:id
 export const updateRoom = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const room = await Room.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const updates: any = { ...req.body };
+    // hotelName is denormalized for display/search — if a room is reassigned to a
+    // different hotel, re-derive it from the authoritative Hotel record rather than
+    // trusting whatever (possibly stale) name the client sent alongside hotelId.
+    if (updates.hotelId) {
+      const hotel = await Hotel.findById(updates.hotelId);
+      if (!hotel) { res.status(404).json({ success: false, message: 'Hotel not found' }); return; }
+      updates.hotelName = hotel.name;
+    }
+
+    const room = await Room.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
     if (!room) { res.status(404).json({ success: false, message: 'Room not found' }); return; }
-    await logAudit({ action: 'update', entityType: 'Room', entityId: room.id, entityName: `${room.hotelName} — ${room.roomNumber}`, req, meta: { changes: req.body } });
+    await logAudit({ action: 'update', entityType: 'Room', entityId: room.id, entityName: `${room.hotelName} — ${room.type}`, req, meta: { changes: req.body } });
     res.json({ success: true, message: 'Room updated', room });
   } catch (err) { next(err); }
 };
@@ -252,7 +262,7 @@ export const restoreRoom = async (req: AuthRequest, res: Response, next: NextFun
     const count = await Room.countDocuments({ hotelId: room.hotelId, isDeleted: { $ne: true } });
     await Hotel.findByIdAndUpdate(room.hotelId, { totalRooms: count });
 
-    await logAudit({ action: 'restore', entityType: 'Room', entityId: room.id, entityName: `${room.hotelName} — ${room.roomNumber}`, req });
+    await logAudit({ action: 'restore', entityType: 'Room', entityId: room.id, entityName: `${room.hotelName} — ${room.type}`, req });
     res.json({ success: true, message: 'Room reactivated', room });
   } catch (err) { next(err); }
 };
@@ -270,7 +280,7 @@ export const deleteRoom = async (req: AuthRequest, res: Response, next: NextFunc
     const count = await Room.countDocuments({ hotelId: room.hotelId, isDeleted: { $ne: true } });
     await Hotel.findByIdAndUpdate(room.hotelId, { totalRooms: count });
 
-    await logAudit({ action: 'soft-delete', entityType: 'Room', entityId: room.id, entityName: `${room.hotelName} — ${room.roomNumber}`, req });
+    await logAudit({ action: 'soft-delete', entityType: 'Room', entityId: room.id, entityName: `${room.hotelName} — ${room.type}`, req });
     res.json({ success: true, message: 'Room deactivated' });
   } catch (err) { next(err); }
 };

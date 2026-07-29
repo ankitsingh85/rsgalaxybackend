@@ -30,12 +30,13 @@ const rateForNight = (room: RoomRate, d: Date): number => {
 };
 
 // Sat/Sun nights bill at weekendRate (falls back to price if unset); a custom date range
-// takes priority over both when the night falls inside one.
-export const calculateStayPrice = (room: RoomRate, checkIn: Date, checkOut: Date): StayPrice => {
+// takes priority over both when the night falls inside one. addonPerNight (the sum of any
+// selected meal-package add-ons) is added on top of that nightly rate, not a replacement.
+export const calculateStayPrice = (room: RoomRate, checkIn: Date, checkOut: Date, addonPerNight = 0): StayPrice => {
   let nights = 0;
   let subtotal = 0;
   for (let d = new Date(checkIn); d < checkOut; d.setDate(d.getDate() + 1)) {
-    subtotal += rateForNight(room, d);
+    subtotal += rateForNight(room, d) + addonPerNight;
     nights++;
   }
   const tax = Math.round(subtotal * 0.12);

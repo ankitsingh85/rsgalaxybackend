@@ -23,6 +23,21 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
   }
 };
 
+// Like authenticate, but never rejects — sets req.user if a valid token is present,
+// otherwise leaves it undefined and continues. For public endpoints that personalize
+// their response for a logged-in caller without requiring login (e.g. public coupons).
+export const optionalAuthenticate = (req: AuthRequest, _res: Response, next: NextFunction): void => {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      req.user = verifyToken(authHeader.split(' ')[1]);
+    } catch {
+      // invalid/expired token on a public route — just treat as anonymous
+    }
+  }
+  next();
+};
+
 export const authorize = (...roles: Array<'admin' | 'manager' | 'user'>) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {

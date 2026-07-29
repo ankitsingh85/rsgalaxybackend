@@ -6,20 +6,33 @@ export interface ICustomRate {
   price: number;
 }
 
+export interface IMealPackage {
+  name: string;
+  price: number;
+  breakfast: boolean;
+  lunch: boolean;
+  dinner: boolean;
+}
+
 export interface IRoom extends Document {
   hotelId: mongoose.Types.ObjectId;
   hotelName: string;
-  roomNumber: string;
-  type: 'standard' | 'deluxe' | 'suite' | 'presidential';
+  type: string;
+  bedType: string;
   price: number;
   weekendRate?: number;
   customRates: ICustomRate[];
-  capacity: number;
+  mealPackages: IMealPackage[];
+  capacityAdults: number;
+  capacityKids: number;
+  hasMattressOption: boolean;
+  mattressPrice: number;
   description: string;
   amenities: string[];
-  images: string[];
+  innerImages: string[];
+  outerImages: string[];
+  washroomImages: string[];
   status: 'available' | 'occupied' | 'maintenance';
-  floor: number;
   size: number;
   isDeleted: boolean;
   deletedAt?: Date;
@@ -31,8 +44,8 @@ const roomSchema = new Schema<IRoom>(
   {
     hotelId: { type: Schema.Types.ObjectId, ref: 'Hotel', required: true, index: true },
     hotelName: { type: String, required: true },
-    roomNumber: { type: String, required: true },
-    type: { type: String, enum: ['standard','deluxe','suite','presidential'], default: 'standard' },
+    type: { type: String, trim: true, default: 'Standard' },
+    bedType: { type: String, trim: true, default: '' },
     price: { type: Number, required: true, min: 0 },
     weekendRate: { type: Number, min: 0 },
     customRates: [
@@ -42,12 +55,25 @@ const roomSchema = new Schema<IRoom>(
         price: { type: Number, required: true, min: 0 },
       },
     ],
-    capacity: { type: Number, default: 2, min: 1 },
+    mealPackages: [
+      {
+        name: { type: String, required: true, trim: true },
+        price: { type: Number, required: true, min: 0 },
+        breakfast: { type: Boolean, default: false },
+        lunch: { type: Boolean, default: false },
+        dinner: { type: Boolean, default: false },
+      },
+    ],
+    capacityAdults: { type: Number, default: 2, min: 1 },
+    capacityKids: { type: Number, default: 0, min: 0 },
+    hasMattressOption: { type: Boolean, default: false },
+    mattressPrice: { type: Number, default: 1000, min: 0 },
     description: { type: String, default: '' },
     amenities: [{ type: String }],
-    images: [{ type: String }],
-    status: { type: String, enum: ['available','occupied','maintenance'], default: 'available' },
-    floor: { type: Number, default: 1 },
+    innerImages: [{ type: String }],
+    outerImages: [{ type: String }],
+    washroomImages: [{ type: String }],
+    status: { type: String, enum: ['available', 'occupied', 'maintenance'], default: 'available' },
     size: { type: Number, default: 30 },
     isDeleted: { type: Boolean, default: false },
     deletedAt: { type: Date },
@@ -55,8 +81,6 @@ const roomSchema = new Schema<IRoom>(
   },
   { timestamps: true }
 );
-
-roomSchema.index({ hotelId: 1, roomNumber: 1 }, { unique: true });
 
 const Room: Model<IRoom> = mongoose.models.Room || mongoose.model<IRoom>('Room', roomSchema);
 export default Room;

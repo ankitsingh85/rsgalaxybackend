@@ -40,7 +40,7 @@ export const getHotel = async (req: AuthRequest, res: Response, next: NextFuncti
   try {
     const hotel = await Hotel.findById(req.params.id);
     if (!hotel) { res.status(404).json({ success: false, message: 'Hotel not found' }); return; }
-    const rooms = await Room.find({ hotelId: hotel.id });
+    const rooms = await Room.find({ hotelId: hotel.id, isDeleted: { $ne: true } });
     res.json({ success: true, hotel, rooms });
   } catch (err) { next(err); }
 };
@@ -130,6 +130,53 @@ export const hardDeleteHotel = async (req: AuthRequest, res: Response, next: Nex
   } catch (err) { next(err); }
 };
 
+// POST /api/hotels/resolve-location — admin only
+const COORD_PATTERNS: RegExp[] = [
+  /@(-?\d+\.\d+),(-?\d+\.\d+)/,
+  /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
+  /[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/,
+  /[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/,
+];
+
+const extractCoords = (text: string): { latitude: number; longitude: number } | null => {
+  for (const pattern of COORD_PATTERNS) {
+    const match = text.match(pattern);
+    if (match) return { latitude: parseFloat(match[1]), longitude: parseFloat(match[2]) };
+  }
+  return null;
+};
+
+export const resolveMapLink = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { url } = req.body;
+    if (!url || typeof url !== 'string') {
+      res.status(400).json({ success: false, message: 'A Google Maps link is required' });
+      return;
+    }
+
+    let finalUrl = url;
+    let body = '';
+    try {
+      const response = await fetch(url, {
+        redirect: 'follow',
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      });
+      finalUrl = response.url || url;
+      body = await response.text();
+    } catch {
+      // network/fetch failure — fall back to parsing the raw pasted URL below
+    }
+
+    const found = extractCoords(finalUrl) || extractCoords(body);
+    if (!found) {
+      res.status(400).json({ success: false, message: 'Could not find coordinates in that link. Try pasting the full Google Maps URL (with the @lat,lng part) or share the location link again.' });
+      return;
+    }
+
+    res.json({ success: true, latitude: found.latitude, longitude: found.longitude });
+  } catch (err) { next(err); }
+};
+
 // POST /api/hotels/upload-images — admin only
 export const uploadHotelImages = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -146,6 +193,35 @@ export const uploadHotelImages = async (req: AuthRequest, res: Response, next: N
         .resize({ width: 1600, withoutEnlargement: true })
         .jpeg({ quality: 80 })
         .toFile(path.join(UPLOAD_DIR, filename));
+      return `${req.protocol}://${req.get('host')}/uploads/hotels/${filename}`;
+    }));
+
+    res.json({ success: true, urls });
+  } catch (err) { next(err); }
+};
+
+// POST /api/hotels/upload-videos — admin only
+const VIDEO_EXT: Record<string, string> = {
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+  'video/quicktime': '.mov',
+  'video/x-matroska': '.mkv',
+  'video/ogg': '.ogv',
+};
+
+export const uploadHotelVideos = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const files = (req.files as Express.Multer.File[]) || [];
+    if (files.length === 0) {
+      res.status(400).json({ success: false, message: 'No videos provided' });
+      return;
+    }
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+    const urls = await Promise.all(files.map(async file => {
+      const ext = VIDEO_EXT[file.mimetype] || '.mp4';
+      const filename = `${crypto.randomUUID()}${ext}`;
+      await fs.promises.writeFile(path.join(UPLOAD_DIR, filename), file.buffer);
       return `${req.protocol}://${req.get('host')}/uploads/hotels/${filename}`;
     }));
 

@@ -1,21 +1,28 @@
-import nodemailer from 'nodemailer';
+import nodemailer, { Transporter } from 'nodemailer';
 
-// Create transporter using SMTP
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: Number(process.env.EMAIL_PORT) || 587,
-  secure: false, // false for 587, true for 465
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// Built lazily (on first send) rather than at module-load time — dotenv.config() in
+// index.ts runs after this module's imports are resolved, so EMAIL_USER/EMAIL_PASS
+// aren't populated yet if the transporter is constructed eagerly at import time.
+let transporter: Transporter | null = null;
 
-// Verify connection on startup (optional)
-transporter.verify((error) => {
-  if (error) console.warn('⚠️  Email service not configured:', error.message);
-  else console.log('📧 Email service ready');
-});
+const getTransporter = (): Transporter => {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: Number(process.env.EMAIL_PORT) || 587,
+      secure: false, // false for 587, true for 465
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+    transporter.verify((error) => {
+      if (error) console.warn('⚠️  Email service not configured:', error.message);
+      else console.log('📧 Email service ready');
+    });
+  }
+  return transporter;
+};
 
 // ── Generate 6-digit OTP ──
 export const generateOTP = (): string => {
@@ -100,7 +107,7 @@ export const sendOTPEmail = async (to: string, otp: string, userName: string): P
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    await getTransporter().sendMail(mailOptions);
     console.log(`📧 OTP email sent to ${to}`);
   } catch (error: any) {
     console.error('❌ Email send failed:', error.message);
@@ -140,7 +147,7 @@ export const sendPasswordChangedEmail = async (to: string, userName: string): Pr
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    await getTransporter().sendMail(mailOptions);
   } catch (error: any) {
     console.error('❌ Confirmation email failed:', error.message);
     // Don't throw — password is already changed
@@ -180,7 +187,7 @@ export const sendAccountBannedEmail = async (to: string, userName: string, reaso
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    await getTransporter().sendMail(mailOptions);
   } catch (error: any) {
     console.error('❌ Ban notification email failed:', error.message);
     // Don't throw — the ban is already applied
@@ -201,7 +208,7 @@ export const sendBookingCheckInEmail = async (to: string, userName: string, book
         <div style="padding: 40px 30px;">
           <p style="font-size: 16px; color: #1f2937;">Hello <strong>${userName}</strong>,</p>
           <p style="font-size: 14px; color: #4b5563; line-height: 1.7;">
-            You've been checked in to <strong>${booking.hotelName}</strong>, Room <strong>${booking.roomNumber}</strong> (${booking.roomType}).
+            You've been checked in to <strong>${booking.hotelName}</strong>, ${booking.roomType} Room.
           </p>
           <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 24px 0;">
             <p style="font-size: 13px; color: #065f46; margin: 0;">Booking Ref: <strong>${booking.bookingRef}</strong></p>
@@ -216,7 +223,7 @@ export const sendBookingCheckInEmail = async (to: string, userName: string, book
     `,
   };
   try {
-    await transporter.sendMail(mailOptions);
+    await getTransporter().sendMail(mailOptions);
   } catch (error: any) {
     console.error('❌ Check-in email failed:', error.message);
   }
@@ -236,7 +243,7 @@ export const sendBookingCheckOutEmail = async (to: string, userName: string, boo
         <div style="padding: 40px 30px;">
           <p style="font-size: 16px; color: #1f2937;">Hello <strong>${userName}</strong>,</p>
           <p style="font-size: 14px; color: #4b5563; line-height: 1.7;">
-            Thank you for staying at <strong>${booking.hotelName}</strong>. You've been checked out of Room <strong>${booking.roomNumber}</strong>.
+            Thank you for staying at <strong>${booking.hotelName}</strong>. You've been checked out of your ${booking.roomType} Room.
           </p>
           <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 24px 0;">
             <p style="font-size: 13px; color: #92400e; margin: 0;">Booking Ref: <strong>${booking.bookingRef}</strong></p>
@@ -251,7 +258,7 @@ export const sendBookingCheckOutEmail = async (to: string, userName: string, boo
     `,
   };
   try {
-    await transporter.sendMail(mailOptions);
+    await getTransporter().sendMail(mailOptions);
   } catch (error: any) {
     console.error('❌ Check-out email failed:', error.message);
   }
@@ -271,7 +278,7 @@ export const sendBookingCancelledEmail = async (to: string, userName: string, bo
         <div style="padding: 40px 30px;">
           <p style="font-size: 16px; color: #1f2937;">Hello <strong>${userName}</strong>,</p>
           <p style="font-size: 14px; color: #4b5563; line-height: 1.7;">
-            Your booking at <strong>${booking.hotelName}</strong>, Room <strong>${booking.roomNumber}</strong> (${booking.roomType}) has been cancelled.
+            Your booking at <strong>${booking.hotelName}</strong>, ${booking.roomType} Room, has been cancelled.
           </p>
           <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; border-radius: 8px; margin: 24px 0;">
             <p style="font-size: 13px; color: #991b1b; margin: 0;">Booking Ref: <strong>${booking.bookingRef}</strong></p>
@@ -290,7 +297,7 @@ export const sendBookingCancelledEmail = async (to: string, userName: string, bo
     `,
   };
   try {
-    await transporter.sendMail(mailOptions);
+    await getTransporter().sendMail(mailOptions);
   } catch (error: any) {
     console.error('❌ Cancellation email failed:', error.message);
   }
@@ -318,5 +325,5 @@ export const sendNotificationEmail = async (to: string, userName: string, title:
     `,
   };
 
-  await transporter.sendMail(mailOptions);
+  await getTransporter().sendMail(mailOptions);
 };

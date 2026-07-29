@@ -10,9 +10,16 @@ export interface CouponResult {
 
 // Validates a coupon code against a booking amount and current usage — shared by
 // the standalone "preview" endpoint and booking creation (which re-checks it for real).
-export const resolveCoupon = async (code: string, bookingAmount: number): Promise<CouponResult> => {
+// userId is required to redeem a 'targeted' coupon — enforced here, not just hidden in
+// the UI, so a scraped/guessed code can't be used by someone it wasn't issued to.
+export const resolveCoupon = async (code: string, bookingAmount: number, userId?: string): Promise<CouponResult> => {
   const coupon = await Coupon.findOne({ code: String(code).trim().toUpperCase() });
   if (!coupon || !coupon.isActive) return { valid: false, message: 'Invalid or inactive coupon code', discountAmount: 0 };
+
+  if (coupon.visibility === 'targeted') {
+    const allowed = !!userId && coupon.targetUserIds.some(id => id.toString() === userId);
+    if (!allowed) return { valid: false, message: 'This coupon is not available on your account', discountAmount: 0 };
+  }
 
   const now = new Date();
   if (now < coupon.validFrom || now > coupon.validUntil) {

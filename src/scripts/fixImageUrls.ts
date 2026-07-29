@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 import Room from '../models/Room.model';
 import Hotel from '../models/Hotel.model';
 import Blog from '../models/Blog.model';
-import MenuItem from '../models/MenuItem.model';
 import Service from '../models/Service.model';
 import User from '../models/User.model';
 
@@ -25,9 +24,17 @@ const run = async () => {
 
   let changed = 0;
 
-  const rooms = await Room.find({ images: { $regex: STALE_ORIGIN_RE } });
+  const rooms = await Room.find({
+    $or: [
+      { innerImages: { $regex: STALE_ORIGIN_RE } },
+      { outerImages: { $regex: STALE_ORIGIN_RE } },
+      { washroomImages: { $regex: STALE_ORIGIN_RE } },
+    ],
+  });
   for (const room of rooms) {
-    room.images = room.images.map((url) => fixUrl(url) as string);
+    room.innerImages = room.innerImages.map((url) => fixUrl(url) as string);
+    room.outerImages = room.outerImages.map((url) => fixUrl(url) as string);
+    room.washroomImages = room.washroomImages.map((url) => fixUrl(url) as string);
     await room.save();
     changed++;
   }
@@ -46,13 +53,6 @@ const run = async () => {
   for (const blog of blogs) {
     blog.coverImage = fixUrl(blog.coverImage);
     await blog.save();
-    changed++;
-  }
-
-  const menuItems = await MenuItem.find({ image: { $regex: STALE_ORIGIN_RE } });
-  for (const item of menuItems) {
-    item.image = fixUrl(item.image);
-    await item.save();
     changed++;
   }
 

@@ -1,8 +1,10 @@
 import { Router } from 'express';
-import { getCoupons, createCoupon, updateCoupon, deactivateCoupon, validateCoupon } from '../controller/coupon.controller';
-import { authenticate, authorize, requirePermission } from '../middleware/auth.middleware';
+import { getCoupons, getPublicCoupons, createCoupon, updateCoupon, deactivateCoupon, validateCoupon } from '../controller/coupon.controller';
+import { authenticate, optionalAuthenticate, authorize, requirePermission } from '../middleware/auth.middleware';
 
 const router = Router();
+
+router.get('/public', optionalAuthenticate, getPublicCoupons);
 
 router.use(authenticate);
 router.post('/validate', validateCoupon);

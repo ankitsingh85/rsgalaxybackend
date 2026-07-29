@@ -14,9 +14,29 @@ export const validateCoupon = async (req: AuthRequest, res: Response, next: Next
       res.status(400).json({ success: false, message: 'Coupon code and booking amount are required' });
       return;
     }
-    const result = await resolveCoupon(code, Number(bookingAmount));
+    const result = await resolveCoupon(code, Number(bookingAmount), req.user!.id);
     if (!result.valid) { res.status(400).json({ success: false, message: result.message }); return; }
     res.json({ success: true, discountAmount: result.discountAmount });
+  } catch (err) { next(err); }
+};
+
+// GET /api/coupons/public — no login required, but personalizes for a logged-in caller:
+// returns currently-valid public coupons plus any 'targeted' coupons issued to them.
+export const getPublicCoupons = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const now = new Date();
+    const query: any = {
+      isActive: true,
+      validFrom: { $lte: now },
+      validUntil: { $gte: now },
+      $or: req.user
+        ? [{ visibility: 'public' }, { visibility: 'targeted', targetUserIds: req.user.id }]
+        : [{ visibility: 'public' }],
+    };
+    const coupons = await Coupon.find(query)
+      .select('code type value minBookingAmount validUntil visibility')
+      .sort({ value: -1 });
+    res.json({ success: true, count: coupons.length, coupons });
   } catch (err) { next(err); }
 };
 
@@ -74,7 +94,7 @@ export const getCoupons = async (_req: AuthRequest, res: Response, next: NextFun
 
 export const createCoupon = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { code, type, value, validFrom, validUntil, minBookingAmount, usageLimit } = req.body;
+    const { code, type, value, validFrom, validUntil, minBookingAmount, usageLimit, visibility, targetUserIds } = req.body;
     if (!code || !type || value === undefined || !validFrom || !validUntil || !usageLimit) {
       res.status(400).json({ success: false, message: 'Code, type, value, validity, and usage limit are required' });
       return;
@@ -92,6 +112,10 @@ export const createCoupon = async (req: AuthRequest, res: Response, next: NextFu
       res.status(400).json({ success: false, message: 'Valid until must be after valid from' });
       return;
     }
+    if (visibility === 'targeted' && (!Array.isArray(targetUserIds) || targetUserIds.length === 0)) {
+      res.status(400).json({ success: false, message: 'Select at least one user for a targeted coupon' });
+      return;
+    }
 
     const coupon = await Coupon.create({
       code: normalizeCode(code),
@@ -101,6 +125,8 @@ export const createCoupon = async (req: AuthRequest, res: Response, next: NextFu
       validUntil,
       minBookingAmount: Number(minBookingAmount || 0),
       usageLimit: Number(usageLimit),
+      visibility: visibility === 'targeted' ? 'targeted' : 'public',
+      targetUserIds: visibility === 'targeted' ? targetUserIds : [],
       isActive: true,
     });
 
@@ -129,6 +155,11 @@ export const updateCoupon = async (req: AuthRequest, res: Response, next: NextFu
       res.status(400).json({ success: false, message: 'Percent discount cannot exceed 100' });
       return;
     }
+    if (updates.visibility === 'targeted' && (!Array.isArray(updates.targetUserIds) || updates.targetUserIds.length === 0)) {
+      res.status(400).json({ success: false, message: 'Select at least one user for a targeted coupon' });
+      return;
+    }
+    if (updates.visibility === 'public') updates.targetUserIds = [];
     if (updates.isActive === false) updates.deactivatedAt = new Date();
     const shouldReactivate = updates.isActive === true;
 

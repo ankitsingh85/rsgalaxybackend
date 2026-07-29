@@ -8,10 +8,10 @@ import connectDB from './config/db';
 import { UPLOADS_ROOT } from './config/uploadPaths';
 import { apiLimiter } from './middleware/rateLimit.middleware';
 
-// Route imports
 import authRoutes from './routes/auth.routes';
 import hotelRoutes from './routes/hotel.routes';
 import roomRoutes from './routes/room.routes';
+import roomTypeRoutes from './routes/roomType.routes';
 import bookingRoutes from './routes/booking.routes';
 import userRoutes from './routes/user.routes';
 import contactRoutes from './routes/contact.routes';
@@ -20,12 +20,13 @@ import couponRoutes from './routes/coupon.routes';
 import blogRoutes from './routes/blog.routes';
 import notificationRoutes from './routes/notification.routes';
 import serviceRoutes from './routes/service.routes';
-import menuItemRoutes from './routes/menuItem.routes';
-import orderRoutes from './routes/order.routes';
+import restaurantVenueRoutes from './routes/restaurantVenue.routes';
+import diningReservationRoutes from './routes/diningReservation.routes';
 import amenityUsageRoutes from './routes/amenityUsage.routes';
 import staffRoutes from './routes/staff.routes';
 import savedCardRoutes from './routes/savedCard.routes';
 import reviewRoutes from './routes/review.routes';
+import homeRoutes from './routes/home.routes';
 
 import { errorHandler, notFound } from './middleware/error.middleware';
 
@@ -50,7 +51,7 @@ console.log('CORS allowed origins:', allowedOrigins);
 // Connect to MongoDB
 connectDB();
 
-// Security middleware
+// Security middlewarex
 app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
@@ -98,6 +99,7 @@ app.get('/', (_req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/hotels', hotelRoutes);
 app.use('/api/rooms', roomRoutes);
+app.use('/api/room-types', roomTypeRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/contact', contactRoutes);
@@ -106,12 +108,13 @@ app.use('/api/coupons', couponRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/services', serviceRoutes);
-app.use('/api/menu-items', menuItemRoutes);
-app.use('/api/orders', orderRoutes);
+app.use('/api/restaurant-venues', restaurantVenueRoutes);
+app.use('/api/dining-reservations', diningReservationRoutes);
 app.use('/api/amenity-usage', amenityUsageRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/saved-cards', savedCardRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/home', homeRoutes);
 
 // Error handlers
 app.use(notFound);

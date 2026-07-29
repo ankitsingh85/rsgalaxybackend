@@ -11,6 +11,8 @@ export interface ICoupon extends Document {
   usedCount: number;
   revenueImpact: number;
   totalBookingRevenue: number;
+  visibility: 'public' | 'targeted';
+  targetUserIds: mongoose.Types.ObjectId[];
   isActive: boolean;
   deactivatedAt?: Date;
   createdAt: Date;
@@ -29,6 +31,10 @@ const couponSchema = new Schema<ICoupon>(
     usedCount: { type: Number, default: 0, min: 0 },
     revenueImpact: { type: Number, default: 0, min: 0 },
     totalBookingRevenue: { type: Number, default: 0, min: 0 },
+    // 'targeted' coupons are only visible/usable by the specific users in targetUserIds —
+    // lets an admin hand a discount to a chosen guest without publishing it to everyone.
+    visibility: { type: String, enum: ['public', 'targeted'], default: 'public' },
+    targetUserIds: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     isActive: { type: Boolean, default: true },
     deactivatedAt: { type: Date },
   },

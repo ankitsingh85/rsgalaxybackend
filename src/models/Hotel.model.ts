@@ -1,5 +1,24 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
+export interface INearbyPlace {
+  name: string;
+  description?: string;
+  image?: string;
+}
+
+export interface IThingToDo {
+  image?: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  distanceKm?: number;
+}
+
+export interface IFaqItem {
+  question: string;
+  answer: string;
+}
+
 export interface IHotel extends Document {
   name: string;
   slug: string;
@@ -13,6 +32,13 @@ export interface IHotel extends Document {
   rating: number;
   image?: string;
   images: string[];
+  videos: string[];
+  locationDescription?: string;
+  nearbyPlaces: INearbyPlace[];
+  thingsToDo: IThingToDo[];
+  faqs: IFaqItem[];
+  rules?: string;
+  checkInDocuments?: string;
   amenities: string[];
   totalRooms: number;
   priceRange: string;
@@ -25,6 +51,34 @@ export interface IHotel extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+const nearbyPlaceSchema = new Schema<INearbyPlace>(
+  {
+    name: { type: String, required: true, trim: true },
+    description: { type: String },
+    image: { type: String },
+  },
+  { _id: false }
+);
+
+const thingToDoSchema = new Schema<IThingToDo>(
+  {
+    image: { type: String },
+    title: { type: String, required: true, trim: true },
+    subtitle: { type: String },
+    description: { type: String },
+    distanceKm: { type: Number, min: 0 },
+  },
+  { _id: false }
+);
+
+const faqItemSchema = new Schema<IFaqItem>(
+  {
+    question: { type: String, required: true, trim: true },
+    answer: { type: String, required: true },
+  },
+  { _id: false }
+);
 
 const hotelSchema = new Schema<IHotel>(
   {
@@ -40,6 +94,13 @@ const hotelSchema = new Schema<IHotel>(
     rating: { type: Number, default: 4.5, min: 0, max: 5 },
     image: { type: String },
     images: [{ type: String }],
+    videos: [{ type: String }],
+    locationDescription: { type: String },
+    nearbyPlaces: [nearbyPlaceSchema],
+    thingsToDo: [thingToDoSchema],
+    faqs: [faqItemSchema],
+    rules: { type: String },
+    checkInDocuments: { type: String },
     amenities: [{ type: String }],
     totalRooms: { type: Number, default: 0 },
     priceRange: { type: String, default: '₹5,000 - ₹25,000' },
