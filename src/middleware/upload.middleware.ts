@@ -16,6 +16,14 @@ export const uploadImages = multer({
   limits: { fileSize: 5 * 1024 * 1024, files: 8 },
 });
 
+// Home page offer banners specifically — capped tighter at 2MB since they're
+// full-bleed slider images served on every homepage visit.
+export const uploadOfferImage = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 2 * 1024 * 1024, files: 1 },
+});
+
 const videoFileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   if (!file.mimetype.startsWith('video/')) {
     cb(new Error('Only video files are allowed'));

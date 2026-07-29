@@ -61,7 +61,7 @@ const normalizePayload = (body: any) => {
         subtitle: String(banner.subtitle || ''),
         link: String(banner.link || ''),
       }))
-      .slice(0, 3);
+      .slice(0, 20);
   }
   return payload;
 };

@@ -9,7 +9,7 @@ export const notFound = (req: Request, res: Response, _next: NextFunction): void
 
 interface ErrorWithStatus extends Error {
   statusCode?: number;
-  code?: number;
+  code?: number | string;
 }
 
 export const errorHandler = (
@@ -31,6 +31,12 @@ export const errorHandler = (
   if (err.name === 'ValidationError') {
     status = 400;
     message = err.message;
+  }
+
+  // Multer upload limits
+  if (err.name === 'MulterError') {
+    status = 400;
+    if (err.code === 'LIMIT_FILE_SIZE') message = 'Image is too large. Please upload a smaller file.';
   }
 
   res.status(status).json({

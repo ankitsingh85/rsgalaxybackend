@@ -143,7 +143,8 @@ const homeContentSchema = new Schema<IHomeContent>(
       ],
     },
 
-    // Capped at 3 in normalizePayload — the homepage slider is designed for exactly 3 slides.
+    // Admin can upload any number of slides — normalizePayload caps it at 20; the public
+    // slider shows 3 at a time and auto-advances through the rest one by one.
     offerBanners: { type: [offerBannerSchema], default: [] },
 
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
