@@ -7,6 +7,7 @@ import Blog from '../models/Blog.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { logAudit } from '../utils/audit';
 import { uploadSubdir } from '../config/uploadPaths';
+import { getPublicBaseUrl } from '../utils/url';
 
 const UPLOAD_DIR = uploadSubdir('blogs');
 
@@ -182,6 +183,6 @@ export const uploadBlogCover = async (req: AuthRequest, res: Response, next: Nex
       .jpeg({ quality: 82 })
       .toFile(path.join(UPLOAD_DIR, filename));
 
-    res.json({ success: true, url: `${req.protocol}://${req.get('host')}/uploads/blogs/${filename}` });
+    res.json({ success: true, url: `${getPublicBaseUrl(req)}/uploads/blogs/${filename}` });
   } catch (err) { next(err); }
 };

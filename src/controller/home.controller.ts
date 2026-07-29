@@ -7,6 +7,7 @@ import HomeContent from '../models/HomeContent.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { logAudit } from '../utils/audit';
 import { uploadSubdir } from '../config/uploadPaths';
+import { getPublicBaseUrl } from '../utils/url';
 
 const UPLOAD_DIR = uploadSubdir('home');
 
@@ -108,7 +109,7 @@ export const uploadHeroImage = async (req: AuthRequest, res: Response, next: Nex
       .jpeg({ quality: 85 })
       .toFile(path.join(UPLOAD_DIR, filename));
 
-    res.json({ success: true, url: `${req.protocol}://${req.get('host')}/uploads/home/${filename}` });
+    res.json({ success: true, url: `${getPublicBaseUrl(req)}/uploads/home/${filename}` });
   } catch (err) { next(err); }
 };
 
@@ -127,7 +128,7 @@ export const uploadAboutImage = async (req: AuthRequest, res: Response, next: Ne
       .jpeg({ quality: 85 })
       .toFile(path.join(UPLOAD_DIR, filename));
 
-    res.json({ success: true, url: `${req.protocol}://${req.get('host')}/uploads/home/${filename}` });
+    res.json({ success: true, url: `${getPublicBaseUrl(req)}/uploads/home/${filename}` });
   } catch (err) { next(err); }
 };
 
@@ -146,6 +147,6 @@ export const uploadOfferImage = async (req: AuthRequest, res: Response, next: Ne
       .jpeg({ quality: 85 })
       .toFile(path.join(UPLOAD_DIR, filename));
 
-    res.json({ success: true, url: `${req.protocol}://${req.get('host')}/uploads/home/${filename}` });
+    res.json({ success: true, url: `${getPublicBaseUrl(req)}/uploads/home/${filename}` });
   } catch (err) { next(err); }
 };

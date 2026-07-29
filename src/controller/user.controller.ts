@@ -10,6 +10,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import { logAudit } from '../utils/audit';
 import { sendAccountBannedEmail, sendPasswordChangedEmail } from '../utils/email';
 import { uploadSubdir } from '../config/uploadPaths';
+import { getPublicBaseUrl } from '../utils/url';
 
 const UPLOAD_DIR = uploadSubdir('guests');
 
@@ -93,7 +94,7 @@ export const uploadGuestId = async (req: AuthRequest, res: Response, next: NextF
       .jpeg({ quality: 85 })
       .toFile(path.join(UPLOAD_DIR, filename));
 
-    res.json({ success: true, url: `${req.protocol}://${req.get('host')}/uploads/guests/${filename}` });
+    res.json({ success: true, url: `${getPublicBaseUrl(req)}/uploads/guests/${filename}` });
   } catch (err) { next(err); }
 };
 

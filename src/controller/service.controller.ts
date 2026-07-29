@@ -8,6 +8,7 @@ import Hotel from '../models/Hotel.model';
 import User from '../models/User.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { uploadSubdir } from '../config/uploadPaths';
+import { getPublicBaseUrl } from '../utils/url';
 
 const UPLOAD_DIR = uploadSubdir('services');
 
@@ -74,7 +75,7 @@ export const uploadServiceImage = async (req: AuthRequest, res: Response, next: 
       .jpeg({ quality: 82 })
       .toFile(path.join(UPLOAD_DIR, filename));
 
-    res.json({ success: true, url: `${req.protocol}://${req.get('host')}/uploads/services/${filename}` });
+    res.json({ success: true, url: `${getPublicBaseUrl(req)}/uploads/services/${filename}` });
   } catch (err) { next(err); }
 };
 

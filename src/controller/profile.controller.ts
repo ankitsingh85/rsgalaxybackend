@@ -7,6 +7,7 @@ import User from '../models/User.model';
 import SavedCard from '../models/SavedCard.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { uploadSubdir } from '../config/uploadPaths';
+import { getPublicBaseUrl } from '../utils/url';
 
 const AVATAR_DIR = uploadSubdir('avatars');
 const ID_DIR = uploadSubdir('guests');
@@ -45,7 +46,7 @@ export const uploadMyAvatar = async (req: AuthRequest, res: Response, next: Next
       .jpeg({ quality: 85 })
       .toFile(path.join(AVATAR_DIR, filename));
 
-    res.json({ success: true, url: `${req.protocol}://${req.get('host')}/uploads/avatars/${filename}` });
+    res.json({ success: true, url: `${getPublicBaseUrl(req)}/uploads/avatars/${filename}` });
   } catch (err) { next(err); }
 };
 
@@ -62,7 +63,7 @@ export const uploadMyIdDocument = async (req: AuthRequest, res: Response, next: 
       .jpeg({ quality: 85 })
       .toFile(path.join(ID_DIR, filename));
 
-    res.json({ success: true, url: `${req.protocol}://${req.get('host')}/uploads/guests/${filename}` });
+    res.json({ success: true, url: `${getPublicBaseUrl(req)}/uploads/guests/${filename}` });
   } catch (err) { next(err); }
 };
 

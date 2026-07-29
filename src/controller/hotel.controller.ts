@@ -10,6 +10,7 @@ import User from '../models/User.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { logAudit } from '../utils/audit';
 import { uploadSubdir } from '../config/uploadPaths';
+import { getPublicBaseUrl } from '../utils/url';
 
 const UPLOAD_DIR = uploadSubdir('hotels');
 
@@ -193,7 +194,7 @@ export const uploadHotelImages = async (req: AuthRequest, res: Response, next: N
         .resize({ width: 1600, withoutEnlargement: true })
         .jpeg({ quality: 80 })
         .toFile(path.join(UPLOAD_DIR, filename));
-      return `${req.protocol}://${req.get('host')}/uploads/hotels/${filename}`;
+      return `${getPublicBaseUrl(req)}/uploads/hotels/${filename}`;
     }));
 
     res.json({ success: true, urls });
@@ -222,7 +223,7 @@ export const uploadHotelVideos = async (req: AuthRequest, res: Response, next: N
       const ext = VIDEO_EXT[file.mimetype] || '.mp4';
       const filename = `${crypto.randomUUID()}${ext}`;
       await fs.promises.writeFile(path.join(UPLOAD_DIR, filename), file.buffer);
-      return `${req.protocol}://${req.get('host')}/uploads/hotels/${filename}`;
+      return `${getPublicBaseUrl(req)}/uploads/hotels/${filename}`;
     }));
 
     res.json({ success: true, urls });

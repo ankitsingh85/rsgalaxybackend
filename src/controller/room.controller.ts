@@ -9,6 +9,7 @@ import Booking from '../models/Booking.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { logAudit } from '../utils/audit';
 import { uploadSubdir } from '../config/uploadPaths';
+import { getPublicBaseUrl } from '../utils/url';
 
 const UPLOAD_DIR = uploadSubdir('rooms');
 
@@ -179,7 +180,7 @@ export const uploadRoomImages = async (req: AuthRequest, res: Response, next: Ne
         .resize({ width: 1600, withoutEnlargement: true })
         .jpeg({ quality: 80 })
         .toFile(path.join(UPLOAD_DIR, filename));
-      return `${req.protocol}://${req.get('host')}/uploads/rooms/${filename}`;
+      return `${getPublicBaseUrl(req)}/uploads/rooms/${filename}`;
     }));
 
     res.json({ success: true, urls });

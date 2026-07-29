@@ -8,6 +8,7 @@ import Hotel from '../models/Hotel.model';
 import User from '../models/User.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { uploadSubdir } from '../config/uploadPaths';
+import { getPublicBaseUrl } from '../utils/url';
 
 const UPLOAD_DIR = uploadSubdir('restaurant-venues');
 
@@ -79,7 +80,7 @@ export const uploadVenueImages = async (req: AuthRequest, res: Response, next: N
         .resize({ width: 1600, withoutEnlargement: true })
         .jpeg({ quality: 82 })
         .toFile(path.join(UPLOAD_DIR, filename));
-      return `${req.protocol}://${req.get('host')}/uploads/restaurant-venues/${filename}`;
+      return `${getPublicBaseUrl(req)}/uploads/restaurant-venues/${filename}`;
     }));
 
     res.json({ success: true, urls });
@@ -96,7 +97,7 @@ export const uploadVenueMenuPdf = async (req: AuthRequest, res: Response, next: 
     const filename = `${crypto.randomUUID()}.pdf`;
     await fs.promises.writeFile(path.join(UPLOAD_DIR, filename), file.buffer);
 
-    res.json({ success: true, url: `${req.protocol}://${req.get('host')}/uploads/restaurant-venues/${filename}` });
+    res.json({ success: true, url: `${getPublicBaseUrl(req)}/uploads/restaurant-venues/${filename}` });
   } catch (err) { next(err); }
 };
 
