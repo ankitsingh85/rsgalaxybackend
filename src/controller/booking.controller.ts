@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import Booking from '../models/Booking.model';
 import Room from '../models/Room.model';
+import Hotel from '../models/Hotel.model';
 import User from '../models/User.model';
 import AmenityUsage from '../models/AmenityUsage.model';
 import { generateBookingRef } from '../utils/jwt';
@@ -116,10 +117,13 @@ export const createBooking = async (req: AuthRequest, res: Response, next: NextF
       hotelName: room.hotelName,
       roomId: room.id,
       roomType: room.type,
+      roomNumber: room.roomNumber,
       mealPlans: selectedMealPlans,
       checkIn: inDate,
       checkOut: outDate,
       guests,
+      adults: Math.max(1, Number(adults || guests || 1)),
+      source: isStaff ? 'Admin Panel' : 'Website',
       mattressAdded,
       mattressCostPerNight,
       totalPrice,
@@ -152,6 +156,7 @@ export const updateBooking = async (req: AuthRequest, res: Response, next: NextF
       data.hotelName = room.hotelName;
       data.roomId = room.id;
       data.roomType = room.type;
+      data.roomNumber = room.roomNumber;
     }
 
     if (data.userId && ['admin', 'manager'].includes(req.user!.role)) {
@@ -320,14 +325,14 @@ export const downloadInvoice = async (req: AuthRequest, res: Response, next: Nex
       return;
     }
 
-    const [usage, room] = await Promise.all([
+    const [usage, room, hotel] = await Promise.all([
       AmenityUsage.find({ bookingId: booking._id }),
       Room.findById(booking.roomId),
+      Hotel.findById(booking.hotelId),
     ]);
-    const stay = room ? calculateStayPrice(room, booking.checkIn, booking.checkOut) : null;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="invoice-${booking.bookingRef}.pdf"`);
-    generateInvoicePdf(booking, usage, stay).pipe(res);
+    generateInvoicePdf(booking, usage, hotel, room).pipe(res);
   } catch (err) { next(err); }
 };

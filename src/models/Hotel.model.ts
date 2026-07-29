@@ -26,6 +26,8 @@ export interface IHotel extends Document {
   city: string;
   country: string;
   contact?: string;
+  email?: string;
+  gstin?: string;
   latitude?: number;
   longitude?: number;
   description: string;
@@ -88,6 +90,8 @@ const hotelSchema = new Schema<IHotel>(
     city: { type: String, required: true, index: true },
     country: { type: String, default: 'India' },
     contact: { type: String },
+    email: { type: String, trim: true },
+    gstin: { type: String, trim: true, uppercase: true },
     latitude: { type: Number, min: -90, max: 90 },
     longitude: { type: Number, min: -180, max: 180 },
     description: { type: String, required: true },

@@ -24,10 +24,13 @@ export interface IBooking extends Document {
   hotelName: string;
   roomId: mongoose.Types.ObjectId;
   roomType: string;
+  roomNumber?: string;
   mealPlans: IMealPlanSnapshot[];
   checkIn: Date;
   checkOut: Date;
   guests: number;
+  adults?: number;
+  source: string;
   mattressAdded?: boolean;
   mattressCostPerNight?: number;
   totalPrice: number;
@@ -56,6 +59,7 @@ const bookingSchema = new Schema<IBooking>(
     hotelName: { type: String, required: true },
     roomId: { type: Schema.Types.ObjectId, ref: 'Room', required: true },
     roomType: { type: String, required: true },
+    roomNumber: { type: String, trim: true, default: '' },
     mealPlans: [
       {
         name: { type: String },
@@ -68,6 +72,8 @@ const bookingSchema = new Schema<IBooking>(
     checkIn: { type: Date, required: true },
     checkOut: { type: Date, required: true },
     guests: { type: Number, default: 1 },
+    adults: { type: Number },
+    source: { type: String, default: 'Website' },
     mattressAdded: { type: Boolean, default: false },
     mattressCostPerNight: { type: Number, default: 0 },
     totalPrice: { type: Number, required: true },

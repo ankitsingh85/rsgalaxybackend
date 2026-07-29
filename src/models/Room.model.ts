@@ -18,6 +18,7 @@ export interface IRoom extends Document {
   hotelId: mongoose.Types.ObjectId;
   hotelName: string;
   type: string;
+  roomNumber?: string;
   bedType: string;
   price: number;
   weekendRate?: number;
@@ -45,6 +46,7 @@ const roomSchema = new Schema<IRoom>(
     hotelId: { type: Schema.Types.ObjectId, ref: 'Hotel', required: true, index: true },
     hotelName: { type: String, required: true },
     type: { type: String, trim: true, default: 'Standard' },
+    roomNumber: { type: String, trim: true, default: '' },
     bedType: { type: String, trim: true, default: '' },
     price: { type: Number, required: true, min: 0 },
     weekendRate: { type: Number, min: 0 },
