@@ -40,13 +40,15 @@ const PORT = process.env.PORT || 5000;
 // can't tell clients apart by IP.
 app.set('trust proxy', 1);
 
+
 const allowedOrigins = (process.env.CLIENT_URL ||
-  'http://localhost:3000,https://rsgalaxy-frontend.vercel.app,https://rsgalaxy-frontend-5825.vercel.app')
+  'http://localhost:3000,https://rsgalaxy-frontend.vercel.app,https://rsgalaxy-frontend-5825.vercel.app,https://rsgalaxyhotels.in,https://www.rsgalaxyhotels.in')
   .split(',')
   .map(origin => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
 console.log('CORS allowed origins:', allowedOrigins);
+
 
 // Connect to MongoDB
 connectDB();
